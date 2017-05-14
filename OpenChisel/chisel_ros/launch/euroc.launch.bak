@@ -1,0 +1,31 @@
+<launch>
+    <machine name="local" address="localhost" default="true"/>
+
+
+    <node name="Chisel" pkg="chisel_ros" type="ChiselNode" output="screen" >
+        <param name="chunk_size_x" value="2"/>
+        <param name="chunk_size_y" value="2"/>
+        <param name="chunk_size_z" value="2"/>
+        <param name="truncation_scale" value="1.5"/>
+        <param name="integration_weight" value="1.0"/>
+        <param name="use_voxel_carving" value="true"/>
+        <param name="use_color" value="true"/>
+        <param name="carving_dist_m" value="0.90"/>
+        <param name="voxel_resolution_m" value="0.10"/>
+        <param name="far_plane_dist" value="5.0"/>
+        <param name="near_plane_dist" value="0.36"/>
+        <param name="base_transform" value="/base"/>
+        <param name="depth_image_transform" value="/ref_frame"/>
+        <param name="color_image_transform" value="/ref_frame"/>
+        <param name="fusion_mode" value="DepthImage"/>
+
+        <remap from="/depth_image" to="/stereo_mapper/depth/image_raw"/>
+        <remap from="/depth_camera_info" to="/stereo_mapper/depth/image_info"/>
+
+        <remap from="/color_image" to="/stereo_mapper/rgb/image_raw"/>
+        <remap from="/color_camera_info" to="/stereo_mapper/rgb/image_info"/>
+
+        <remap from="/camera/depth_registered/points" to="/stereo_mapper/point_cloud2"/>
+
+    </node>
+</launch>

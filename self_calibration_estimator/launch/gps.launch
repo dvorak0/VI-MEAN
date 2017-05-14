@@ -1,0 +1,5 @@
+<launch>
+    <node name="gps" pkg="gps_common" type="utm_odometry_node" output="screen">
+        <remap from="~fix" to="/djiros/gps" />
+    </node>
+</launch>

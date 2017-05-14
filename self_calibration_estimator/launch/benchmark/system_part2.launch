@@ -1,0 +1,54 @@
+<launch>
+    <node name="feature_tracker" pkg="feature_tracker" type="feature_tracker" output="log" launch-prefix="taskset -c 2">
+        <param name="calib_dir" type="string" value="$(find feature_tracker)/config/" />
+        <param name="cam_name0" type="string" value="lin4_1" />
+        <param name="max_cnt" type="int" value="100" />
+        <param name="min_dist" type="int" value="30" />
+        <param name="window_size" type="int" value="20" />
+        <param name="freq" type="int" value="2" />
+        <param name="F_threshold" type="double" value="1.0" />
+        <param name="T_threshold" type="double" value="0.5" />
+        <param name="show_track" type="bool" value="false" />
+        <param name="stereo_track" type="bool" value="false" />
+        <param name="use_T" type="bool" value="false" />
+        <param name="use_F" type="bool" value="true" />
+        <param name="equalize" type="bool" value="false" />
+        <remap from="~imu" to="/imu0" />
+        <remap from="~raw_image" to="/cam1/image_raw" />
+    </node>
+    <node name="self_calibration_estimator" pkg="self_calibration_estimator" type="self_calibration_estimator" output="log" launch-prefix="taskset -c 3">
+        <param name="max_feature_cnt" type="int" value="200" />
+        <param name="num_of_iter" type="int" value="10" />
+        <param name="calib_threshold_ric" type="double" value="0.0" />
+        <param name="calib_threshold_tic" type="double" value="1.0" />
+        <param name="init_depth" type="double" value="15.0" />
+        <param name="gradient_threshold" type="double" value="1.0" />
+        <param name="feature_threshold" type="double" value="5.0" />
+        <param name="min_parallax" type="double" value="10.0" />
+        <param name="min_parallax_point" type="double" value="5.0" />
+        <param name="error_threshold" type="double" value="10000000000.0" />
+        <param name="show_histogram" type="bool" value="false" />
+        <param name="show_graph" type="bool" value="false" />
+        <param name="show_html" type="bool" value="false" />
+        <param name="multi_thread" type="bool" value="false" />
+        <param name="imu_rate" type="double" value="200" />
+        <param name="bias_acc_threshold" type="double" value="0.5" />
+        <param name="bias_gyr_threshold" type="double" value="0.1" />
+        <param name="solver_time" type="double" value="0.050" />
+        <param name="compensate_rotation" type="bool" value="true" />
+        <param name="acc_n" type="double" value="0.01" />
+        <param name="acc_w" type="double" value="0.0002" />
+        <param name="gyr_n" type="double" value="0.05" />
+        <param name="gyr_w" type="double" value="4.0e-6" />
+        <param name="ric_ok0" type="bool" value="true" />
+        <param name="ric_y0" type="double" value="0.0" />
+        <param name="ric_p0" type="double" value="0.0" />
+        <param name="ric_r0" type="double" value="0.0" />
+        <param name="tic_ok0" type="bool" value="true" />
+        <param name="tic_x0" type="double" value="-0.05" />
+        <param name="tic_y0" type="double" value="0.00" />
+        <param name="tic_z0" type="double" value="0.00" />
+        <remap from="~imu" to="/imu0" />
+        <remap from="~image" to="/feature_tracker/image" />
+    </node>
+</launch>

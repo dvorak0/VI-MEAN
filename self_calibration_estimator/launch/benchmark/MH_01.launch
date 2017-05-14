@@ -1,0 +1,9 @@
+<launch>
+    <include file="$(find self_calibration_estimator)/launch/benchmark/system.launch" />
+    <node name="benchmark_publisher" pkg="benchmark_publisher" type="benchmark_publisher" output="screen">
+        <param name="data_dir" type="string" value="/home/dvorak/catkin_ws/data/ijrr_euroc_mav_dataset/" />
+        <param name="data_name" type="string" value="MH_01_easy" />
+        <remap from="~estimated_odometry" to="/self_calibration_estimator/odometry" />
+    </node>
+    <node pkg="rosbag" type="play" name="player" output="screen" args="/home/yzf/data/ijrr_euroc_mav_dataset/machine_hall/MH_01_easy/MH_01_easy.bag -r 0.5 -s 55" />
+</launch>

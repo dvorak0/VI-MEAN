@@ -1,0 +1,73 @@
+<launch>
+    <node pkg="feature_tracker" name="feature_tracker" type="feature_tracker" output="log">
+        <param name="calib_dir" type="string" value="$(find feature_tracker)/config/" />
+        <param name="cam_name0" type="string" value="vi_l" />
+        <param name="cam_name1" type="string" value="04" />
+        <param name="cam_name2" type="string" value="82" />
+        <param name="max_cnt" type="int" value="200" />
+        <param name="min_dist" type="int" value="15" />
+        <param name="window_size" type="int" value="20" />
+        <param name="freq" type="int" value="2" />
+        <param name="F_threshold" type="double" value="0.5" />
+        <param name="T_threshold" type="double" value="0.5" />
+        <param name="show_track" type="bool" value="true" />
+        <param name="show_stereo" type="bool" value="false" />
+        <param name="stereo_track" type="bool" value="false" />
+        <param name="use_T" type="bool" value="false" />
+        <param name="use_F" type="bool" value="true" />
+
+        <remap from="~imu" to="/visensor/imu"/>
+        <remap from="~raw_image" to="/cam0"/>
+    </node>
+
+
+    <node name="self_calibration_estimator" pkg="self_calibration_estimator" type="self_calibration_estimator" output="screen" >
+        <param name="max_feature_cnt" type="int" value="200" />
+        <param name="max_track_cnt" type="int" value="10" />
+        <param name="num_of_iter" type="int" value="4" />
+        <param name="calib_threshold_ric" type="double" value="0.0" />
+        <param name="calib_threshold_tic" type="double" value="1.002" />
+        <param name="init_depth" type="double" value="15.0" />
+        <param name="gradient_threshold" type="double" value="1.0" />
+        <param name="feature_threshold" type="double" value="10.0" />
+        <param name="min_parallax" type="double" value="2.0" />
+        <param name="min_parallax_point" type="double" value="0.1" />
+        <param name="error_threshold" type="double" value="5000.0" />
+        <param name="show_histogram" type="bool" value="false" />
+        <param name="multi_thread" type="bool" value="false" />
+        <param name="inv_dep" type="bool" value="true" />
+
+        <param name="ric_ok0" type="bool" value="true" />
+        <param name="ric_y0" type="double" value="0.0" />
+        <param name="ric_p0" type="double" value="0.0" />
+        <param name="ric_r0" type="double" value="0.0" />
+
+        <param name="ric_ok1" type="bool" value="true" />
+        <param name="ric_y1" type="double" value="-90.0" />
+        <param name="ric_p1" type="double" value="0.0" />
+        <param name="ric_r1" type="double" value="90.0" />
+
+        <param name="ric_ok2" type="bool" value="true" />
+        <param name="ric_y2" type="double" value="-90.0" />
+        <param name="ric_p2" type="double" value="0.0" />
+        <param name="ric_r2" type="double" value="0.0" />
+
+        <param name="tic_ok0" type="bool" value="true" />
+        <param name="tic_x0" type="double" value="0.00" />
+        <param name="tic_y0" type="double" value="0.00" />
+        <param name="tic_z0" type="double" value="0.00" />
+
+        <param name="tic_ok1" type="bool" value="true" />
+        <param name="tic_x1" type="double" value="-0.02" />
+        <param name="tic_y1" type="double" value="-0.15" />
+        <param name="tic_z1" type="double" value="0.02" />
+
+        <param name="tic_ok2" type="bool" value="true" />
+        <param name="tic_x2" type="double" value="0.15" />
+        <param name="tic_y2" type="double" value="-0.17" />
+        <param name="tic_z2" type="double" value="0.15" />
+
+        <remap from="~imu" to="/visensor/imu" />
+        <remap from="~image" to="feature_tracker/image" />
+    </node>
+</launch>

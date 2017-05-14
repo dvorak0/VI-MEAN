@@ -1,0 +1,6 @@
+<launch>
+    <node name="rvizvisualisation" pkg="rviz" type="rviz" output="log" args="-d $(find self_calibration_estimator)/config/sample.rviz" />
+    <include file="$(find chisel_ros)/launch/sample.launch"/>
+    <include file="$(find stereo_mapper)/launch/sample.launch"/>
+    <include file="$(find self_calibration_estimator)/launch/mapping/sample.launch"/>
+</launch>

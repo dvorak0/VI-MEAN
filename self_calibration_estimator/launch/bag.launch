@@ -1,0 +1,7 @@
+<launch>
+    <node name="rosbag" pkg="rosbag" type="play" respawn="false" args="--delay=1 --queue=1000 /home/dvorak/catkin_ws/data/stereo/2015-04-16-23-14-12.bag" />
+    <node pkg="feature_tracker" name="feature_tracker" type="feature_tracker" output="log">
+        <rosparam file="$(find feature_tracker)/config/cali.yml" />
+    </node>
+    <node name="self_calibration_estimator" pkg="self_calibration_estimator" type="self_calibration_estimator" output="screen" />
+</launch>

@@ -1,0 +1,8 @@
+<launch>
+    <node name="stereo_mapper" pkg="stereo_mapper" type="stereo_mapper" output="screen">
+        <remap from="~image_l" to="/cam0/image_raw" />
+        <remap from="~image_r" to="/cam1/image_raw" />
+        <remap from="~image_f" to="/feature_tracker/image" />
+        <remap from="~camera_pose" to="/self_calibration_estimator/camera_pose" />
+    </node>
+</launch>

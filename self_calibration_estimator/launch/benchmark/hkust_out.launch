@@ -1,0 +1,4 @@
+<launch>
+    <include file="$(find self_calibration_estimator)/launch/benchmark/system2.launch" />
+    <node pkg="rosbag" type="play" name="player" output="screen" args="/home/yzf/data/chisel/2016-07-09-12-53-56-outRI-nae.bag -s 6" />
+</launch>

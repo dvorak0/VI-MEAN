@@ -1,0 +1,31 @@
+<launch>
+    <node pkg="data_generator" name="data_generator" type="data_generator" output="log" />
+    <node name="self_calibration_estimator" pkg="self_calibration_estimator" type="self_calibration_estimator" output="screen">
+        <param name="max_feature_cnt" type="int" value="200" />
+        <param name="max_track_cnt" type="int" value="100" />
+        <param name="num_of_iter" type="int" value="4" />
+        <param name="calib_threshold_ric" type="double" value="0.0" />
+        <param name="calib_threshold_tic" type="double" value="1.0" />
+        <param name="init_depth" type="double" value="15.0" />
+        <param name="gradient_threshold" type="double" value="1.0" />
+        <param name="feature_threshold" type="double" value="5.0" />
+        <param name="min_parallax" type="double" value="10.0" />
+        <param name="min_parallax_point" type="double" value="10.0" />
+        <param name="error_threshold" type="double" value="10000000000.0" />
+        <param name="show_histogram" type="bool" value="false" />
+        <param name="show_graph" type="bool" value="false" />
+        <param name="multi_thread" type="bool" value="false" />
+        <param name="ric_ok0" type="bool" value="true" />
+        <param name="ric_y0" type="double" value="-90.0" />
+        <param name="ric_p0" type="double" value="0.0" />
+        <param name="ric_r0" type="double" value="90.0" />
+        <param name="tic_ok0" type="bool" value="false" />
+        <param name="ric_ok1" type="bool" value="true" />
+        <param name="ric_y1" type="double" value="-90.0" />
+        <param name="ric_p1" type="double" value="0.0" />
+        <param name="ric_r1" type="double" value="90.0" />
+        <param name="tic_ok1" type="bool" value="false" />
+        <remap from="~imu" to="/data_generator/imu" />
+        <remap from="~image" to="/data_generator/image" />
+    </node>
+</launch>

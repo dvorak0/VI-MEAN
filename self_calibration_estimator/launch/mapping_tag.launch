@@ -1,0 +1,11 @@
+<launch>
+    <node pkg="tag_detector" type="tag_detector" name="tag_detector" output="screen">
+        <remap from="~image_raw" to="/bluefox2/a" />
+        <param name="cam_cal_file" type="string" value="$(find tag_detector)/config/25001283_opencv.yml" />
+        <param name="board_config_file" type="string" value="$(find tag_detector)/config/a.yml" />
+    </node>
+    <node name="semidense_mapper" pkg="semidense_mapper" type="semidense_mapper" output="screen">
+        <remap from="~image" to="/bluefox2/a" />
+        <remap from="~camera_pose" to="/tag_detector/camera_pose" />
+    </node>
+</launch>

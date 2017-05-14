@@ -1,0 +1,7 @@
+*. uncovered area && temporal integration
+*. minimal sample unit
+
+
+
+feature
+*. cost aggregate

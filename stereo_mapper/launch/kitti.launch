@@ -1,0 +1,8 @@
+<launch>
+    <node name="kitti_estimator" pkg="kitti_estimator" type="kitti_estimator" output="screen" />
+    <node name="stereo_mapper" pkg="stereo_mapper" type="stereo_mapper" output="screen">
+        <remap from="~image_l" to="/kitti_estimator/image_l" />
+        <remap from="~image_r" to="/kitti_estimator/image_r" />
+        <remap from="~camera_pose" to="/kitti_estimator/camera_pose" />
+    </node>
+</launch>

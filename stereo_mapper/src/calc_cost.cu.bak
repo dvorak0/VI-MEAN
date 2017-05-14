@@ -1,0 +1,351 @@
+#include "calc_cost.h"
+
+texture<float, cudaTextureType2D, cudaReadModeElementType> tex2Dleft;
+texture<float, cudaTextureType2D, cudaReadModeElementType> tex2Dright;
+
+int iDivUp(int a, int b)
+{
+    return (a + b - 1) / b;
+}
+
+#define INDEX(dim0, dim1, dim2) (((dim0)*ALIGN_WIDTH + (dim1)) * DEP_CNT + (dim2))
+
+__global__ void
+ADCalcCostKernel(
+    int measurement_cnt,
+    float r11, float r12, float r13,
+    float r21, float r22, float r23,
+    float r31, float r32, float r33,
+    float t1, float t2, float t3,
+    float fx, float fy, float cx, float cy,
+    unsigned char *img_l, size_t pitch_img_l,
+    unsigned char *img_r, size_t pitch_r_warp,
+    float *cost)
+{
+    const int tidx_base = blockDim.x * blockIdx.x;
+    const int tidy = blockIdx.y;
+    const int MARGIN = 2;
+    float idep = threadIdx.x * DEP_SAMPLE;
+
+    for (int k = 0, tidx = tidx_base; k < DEP_CNT; k++, tidx++)
+        if (tidx >= 0 && tidx <= WIDTH - 1 && tidy >= 0 && tidy <= HEIGHT - 1)
+        {
+            float *cost_ptr = cost + INDEX(tidy, tidx, threadIdx.x);
+            if (measurement_cnt == 1 && tidx < MARGIN || tidx > WIDTH - 1 - MARGIN || tidy < MARGIN || tidy >= HEIGHT - 1 - MARGIN)
+            {
+                *cost_ptr = -1.0f;
+                continue;
+            }
+
+            float last_cost = *cost_ptr;
+            if (measurement_cnt != 1 && last_cost < 0)
+            {
+                continue;
+            }
+
+            float tmp = 0.0f;
+            for (int p = -2; p <= 2; p++)
+                for (int q = -2; q <= 2; q++)
+                {
+                    int tx = tidx + p;
+                    int ty = tidy + q;
+                    float x = r11 * tx + r12 * ty + r13 * 1.0f;
+                    float y = r21 * tx + r22 * ty + r23 * 1.0f;
+                    float z = r31 * tx + r32 * ty + r33 * 1.0f;
+
+                    float w = z + t3 * idep;
+                    float u = (x + t1 * idep) / w;
+                    float v = (y + t2 * idep) / w;
+
+                    if (w < 0 || u < 0 || u > WIDTH - 1 || v < 0 || v > HEIGHT - 1)
+                    {
+                        *cost_ptr = -1.0f;
+                        continue;
+                    }
+
+                    tmp += fabs(tex2D(tex2Dleft, tx, ty) - tex2D(tex2Dright, u, v));
+                }
+            if (measurement_cnt == 1)
+                *cost_ptr = tmp / PATCH_SIZE;
+            else
+                *cost_ptr = (last_cost * (measurement_cnt - 1) + tmp / PATCH_SIZE) / measurement_cnt;
+        }
+}
+
+__global__ void
+filterCostKernel(float *cost,
+                 unsigned char *dep, size_t pitch_dep,
+                 float var_scale, int var_width)
+{
+    const int tidx = blockIdx.x; // + threadIdx.x;
+    const int tidy = blockIdx.y; // + threadIdx.y;
+    const int d = threadIdx.x;
+
+    if (tidx >= 0 && tidx < WIDTH && tidx >= 0 && tidy < HEIGHT)
+    {
+        float *p_dep = (float *)(dep + tidy * pitch_dep) + tidx;
+
+        __shared__ float c[DEP_CNT], c_min[DEP_CNT];
+        __shared__ int c_idx[DEP_CNT];
+
+        c[d] = c_min[d] = cost[INDEX(tidy, tidx, d)];
+        c_idx[d] = d;
+        __syncthreads();
+        for (int i = 64; i > 0; i /= 2)
+        {
+            if (d < i && d + i < DEP_CNT && c_min[d + i] < c_min[d])
+            {
+                c_min[d] = c_min[d + i];
+                c_idx[d] = c_idx[d + i];
+            }
+            __syncthreads();
+        }
+        if (threadIdx.x == 0)
+        {
+            float min_cost = c_min[0];
+            int min_idx = c_idx[0];
+
+            if (min_cost == 0 || min_idx == 0 || min_idx == DEP_CNT - 1 || c[min_idx - 1] + c[min_idx + 1] - 2 * min_cost < 0.001f)
+                *p_dep = 1000.0f;
+            else
+            {
+                float cost_pre = c[min_idx - 1];
+                float cost_post = c[min_idx + 1];
+                float a = cost_pre - 2.0f * min_cost + cost_post;
+                float b = -cost_pre + cost_post;
+                float subpixel_idx = min_idx - b / (2.0f * a);
+                *p_dep = 1.0f / (subpixel_idx * DEP_SAMPLE);
+            }
+        }
+    }
+}
+
+void ad_calc_cost(
+    int measurement_cnt,
+    float r11, float r12, float r13,
+    float r21, float r22, float r23,
+    float r31, float r32, float r33,
+    float t1, float t2, float t3,
+    float fx, float fy, float cx, float cy,
+    unsigned char *img_l, size_t pitch_img_l,
+    unsigned char *img_r, size_t pitch_img_r,
+    unsigned char *cost)
+{
+    dim3 numThreads = dim3(DEP_CNT, 1, 1);
+    dim3 numBlocks = dim3(iDivUp(WIDTH, DEP_CNT), HEIGHT);
+
+    cudaChannelFormatDesc ca_desc0 = cudaCreateChannelDesc<float>();
+    cudaChannelFormatDesc ca_desc1 = cudaCreateChannelDesc<float>();
+    tex2Dleft.addressMode[0] = cudaAddressModeBorder;
+    tex2Dleft.addressMode[1] = cudaAddressModeBorder;
+    tex2Dleft.filterMode = cudaFilterModeLinear;
+    tex2Dleft.normalized = false;
+    tex2Dright.addressMode[0] = cudaAddressModeBorder;
+    tex2Dright.addressMode[1] = cudaAddressModeBorder;
+    tex2Dright.filterMode = cudaFilterModeLinear;
+    tex2Dright.normalized = false;
+
+    size_t offset = 0;
+    checkCudaErrors(cudaBindTexture2D(&offset, tex2Dleft, reinterpret_cast<float *>(img_l), ca_desc0, WIDTH, HEIGHT, ALIGN_WIDTH * sizeof(float)));
+    assert(offset == 0);
+
+    checkCudaErrors(cudaBindTexture2D(&offset, tex2Dright, reinterpret_cast<float *>(img_r), ca_desc1, WIDTH, HEIGHT, ALIGN_WIDTH * sizeof(float)));
+    assert(offset == 0);
+
+    ADCalcCostKernel << <numBlocks, numThreads>>> (measurement_cnt,
+                                                   r11, r12, r13,
+                                                   r21, r22, r23,
+                                                   r31, r32, r33,
+                                                   t1, t2, t3,
+                                                   fx, fy, cx, cy,
+                                                   img_l, pitch_img_l,
+                                                   img_r, pitch_img_r,
+                                                   reinterpret_cast<float *>(cost));
+    cudaDeviceSynchronize();
+}
+
+//void census_calc_cost(int k,
+//        unsigned char *img_l, size_t pitch_img_l,
+//        unsigned char *img_warp, size_t pitch_img_warp,
+//        unsigned char *cost)
+//{
+//    dim3 numThreads = dim3(BLOCK_SIZE_X, BLOCK_SIZE_Y, 1);
+//    dim3 numBlocks = dim3(iDivUp(WIDTH, numThreads.x), iDivUp(HEIGHT, numThreads.y));
+//
+//    CensusCalcCostKernel << <numBlocks, numThreads>>> (k,
+//            img_l, pitch_img_l,
+//            img_warp, pitch_img_warp,
+//            reinterpret_cast<float *>(cost));
+//    cudaDeviceSynchronize();
+//}
+
+void filter_cost(
+    unsigned char *cost,
+    unsigned char *dep, size_t pitch_dep)
+{
+    dim3 numThreads = dim3(DEP_CNT, 1, 1);
+    dim3 numBlocks = dim3(WIDTH, HEIGHT, 1);
+
+    filterCostKernel << <numBlocks, numThreads>>> (reinterpret_cast<float *>(cost),
+                                                   dep, pitch_dep,
+                                                   var_scale, var_width);
+    cudaDeviceSynchronize();
+}
+
+template <int idx, int start, int dx, int dy, int n>
+__global__ void sgm2(
+    unsigned char *x0, size_t pitch_x0,
+    unsigned char *x1, size_t pitch_x1,
+    float *input,
+    float *output,
+    float pi1, float pi2, float tau_so, float sgm_q1, float sgm_q2)
+{
+    int xy[2] = {blockIdx.x, blockIdx.x};
+    xy[idx] = start;
+    int x = xy[0], y = xy[1];
+    int d = threadIdx.x;
+
+    __shared__ float output_s[400], output_min[400];
+    __shared__ float input_s[400], input_min[400];
+
+    input_s[d] = input_min[d] = input[INDEX(y, x, d)];
+    __syncthreads();
+    for (int i = 64; i > 0; i /= 2)
+    {
+        if (d < i && d + i < DEP_CNT && input_min[d + i] < input_min[d])
+        {
+            input_min[d] = input_min[d + i];
+        }
+        __syncthreads();
+    }
+    if (input_min[0] < 0.0f)
+    {
+        input_s[d] = 0.0f;
+        output[INDEX(y, x, d)] = input_s[d];
+        output_s[d] = output_min[d] = input_s[d];
+    }
+    else
+    {
+        output[INDEX(y, x, d)] += input_s[d];
+        output_s[d] = output_min[d] = input_s[d];
+    }
+    xy[0] += dx;
+    xy[1] += dy;
+
+    for (int k = 1; k < n; k++, xy[0] += dx, xy[1] += dy)
+    {
+        x = xy[0];
+        y = xy[1];
+
+        input_s[d] = input_min[d] = input[INDEX(y, x, d)];
+        __syncthreads();
+        for (int i = 64; i > 0; i /= 2)
+        {
+            if (d < i && d + i < DEP_CNT && output_min[d + i] < output_min[d])
+            {
+                output_min[d] = output_min[d + i];
+            }
+            if (d < i && d + i < DEP_CNT && input_min[d + i] < input_min[d])
+            {
+                input_min[d] = input_min[d + i];
+            }
+            __syncthreads();
+        }
+        if (input_min[0] < 0.0f)
+        {
+            input_s[d] = 0.0f;
+            __syncthreads();
+        }
+
+        //float *i_cur = (float *)(x0 + y * pitch_x0) + x;
+        //float *i_pre = (float *)(x0 + (y - dy) * pitch_x0) + (x - dx);
+        //float D1 = fabs(*i_cur - *i_pre);
+        //float D2 = fabs(*i_cur - *i_pre);
+        float D1 = fabs(tex2D(tex2Dleft, x, y) - tex2D(tex2Dleft, x - dx, y - dy));
+        //float D1 = fabs(tex2D( - *i_pre);
+        //float D2 = D1;
+        // int xx = x + d * direction;
+        // if (xx < 0 || xx >= size2 || xx - dx < 0 || xx - dx >= size2)
+        // {
+        //     D2 = 10;
+        // }
+        // else
+        // {
+        //     D2 = COLOR_DIFF(x1, ind2 + d * direction, ind2 + d * direction - dy * size2 - dx);
+        // }
+        float P1 = pi1, P2 = pi2;
+        if (D1 < tau_so)
+        {
+            P1 /= sgm_q1;
+            P2 /= sgm_q2;
+        }
+        //if (D1 < tau_so && D2 < tau_so)
+        //{
+        //    P1 = pi1;
+        //    P2 = pi2;
+        //}
+        //else if (D1 > tau_so && D2 > tau_so)
+        //{
+        //    P1 = pi1 / (sgm_q1 * sgm_q1);
+        //    P2 = pi2 / (sgm_q2 * sgm_q2);
+        //}
+        //else
+        //{
+        //    P1 = pi1 / sgm_q1;
+        //    P2 = pi2 / sgm_q1;
+        //}
+
+        float cost = min(output_s[d], output_min[0] + P2);
+        if (d - 1 >= 0)
+        {
+            cost = min(cost, output_s[d - 1] + P1);
+        }
+        if (d + 1 < DEP_CNT)
+        {
+            cost = min(cost, output_s[d + 1] + P1);
+        }
+
+        float val = input_s[d] + cost; // - output_min[0];
+        if (input_min[0] < 0.0f)
+        {
+            output[INDEX(y, x, d)] = 0.0;
+        }
+        else
+        {
+            output[INDEX(y, x, d)] += val;
+        }
+        output_min[d] = output_s[d] = val;
+    }
+}
+
+void sgm2(
+    unsigned char *x0, size_t pitch_x0,
+    unsigned char *x1, size_t pitch_x1,
+    unsigned char *input,
+    unsigned char *output)
+{
+    sgm2<0, 0, 1, 0, WIDTH> << <HEIGHT, DEP_CNT>>> (x0, pitch_x0,
+                                                    x1, pitch_x1,
+                                                    reinterpret_cast<float *>(input),
+                                                    reinterpret_cast<float *>(output),
+                                                    pi1, pi2, tau_so, sgm_q1, sgm_q2);
+
+    sgm2<0, WIDTH - 1, -1, 0, WIDTH> << <HEIGHT, DEP_CNT>>> (x0, pitch_x0,
+                                                             x1, pitch_x1,
+                                                             reinterpret_cast<float *>(input),
+                                                             reinterpret_cast<float *>(output),
+                                                             pi1, pi2, tau_so, sgm_q1, sgm_q2);
+
+    sgm2<1, 0, 0, 1, HEIGHT> << <WIDTH, DEP_CNT>>> (x0, pitch_x0,
+                                                    x1, pitch_x1,
+                                                    reinterpret_cast<float *>(input),
+                                                    reinterpret_cast<float *>(output),
+                                                    pi1, pi2, tau_so, sgm_q1, sgm_q2);
+
+    sgm2<1, HEIGHT - 1, 0, -1, HEIGHT> << <WIDTH, DEP_CNT>>> (x0, pitch_x0,
+                                                              x1, pitch_x1,
+                                                              reinterpret_cast<float *>(input),
+                                                              reinterpret_cast<float *>(output),
+                                                              pi1, pi2, tau_so, sgm_q1, sgm_q2);
+    cudaDeviceSynchronize();
+}

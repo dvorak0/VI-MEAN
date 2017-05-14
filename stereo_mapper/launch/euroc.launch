@@ -1,0 +1,11 @@
+<launch>
+    <node name="stereo_mapper" pkg="stereo_mapper" type="stereo_mapper" output="screen" launch-prefix="taskset -c 1">
+        <param name="calib_dir" type="string" value="$(find stereo_mapper)/calib/" />
+        <param name="cam_name" type="string" value="lin4" />
+        <remap from="~image_l" to="/cam1/image_raw" />
+        <remap from="~image_r" to="/cam1/image_raw" />
+        <remap from="~image_f" to="/feature_tracker/image" />
+        <remap from="~ref_pose" to="/self_calibration_estimator/ref_pose" />
+        <remap from="~cur_pose" to="/self_calibration_estimator/cur_pose" />
+    </node>
+</launch>

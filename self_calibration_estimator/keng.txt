@@ -1,0 +1,12 @@
+advanced integration, higher order transition
+//unobserved points (predicted?), homogeneous free direction in optimization (yaw, degraded points). LM, DogLeg
+consistency?
+//square root form. numerical issue
+keyframe strategy
+feature tracker. control number of feature
+super long observed feature.
+specifications.
+
+
+stereo + flow(consistency)
+patchmatch refinement

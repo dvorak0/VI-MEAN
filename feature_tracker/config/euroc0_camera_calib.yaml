@@ -1,0 +1,17 @@
+%YAML:1.0
+model_type: MEI
+camera_name: euroc
+image_width: 752
+image_height: 480
+mirror_parameters:
+   xi: 3.5791785759740207e+00
+distortion_parameters:
+   k1: 1.1200888864725969e+00
+   k2: 1.4619037660196268e+01
+   p1: -5.9181851326888923e-04
+   p2: -1.6576998207547066e-04
+projection_parameters:
+   gamma1: 2.1154322152203672e+03
+   gamma2: 2.1087733708996229e+03
+   u0: 3.6121005148768199e+02
+   v0: 2.4829074453048375e+02

@@ -1,0 +1,4 @@
+<launch>
+    <include file="$(find self_calibration_estimator)/launch/benchmark/system.launch" />
+    <node pkg="rosbag" type="play" name="player" output="screen" args="/home/yzf/data/ijrr_euroc_mav_dataset/vicon_room2/V2_01_easy/V2_01_easy.bag -r 0.5 -s 3" />
+</launch>

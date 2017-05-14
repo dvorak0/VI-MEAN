@@ -1,0 +1,53 @@
+<launch>
+    <!-- Name of the node -->
+    <arg name="imu_node" default="imu_3dm_gx4"/>
+
+    <!-- Baudrate of serial comms (see manual for allowed values) -->
+    <arg name="baudrate" default="921600" />
+
+    <!-- Path to device in /dev -->
+    <arg name="device" default="/dev/ttyACM1" />
+
+    <!-- Frame ID for messages -->
+    <arg name="frame_id" default="imu"/>
+
+    <!-- Decimation value x, where freq = 1000 / x -->
+    <arg name="imu_decimation" default="2"/>
+    <arg name="filter_decimation" default="5"/>
+
+    <!-- Enable/Disable the filter -->
+    <arg name="enable_filter" default="false"/>
+
+    <!-- Enable/Disable filter updates -->
+    <arg name="enable_accel_update" default="false"/>
+    <arg name="enable_mag_update" default="false"/>
+
+    <node pkg="imu_3dm_gx4" name="$(arg imu_node)" type="imu_3dm_gx4" output="screen">
+        <param name="device" type="string" value="$(arg device)" />
+        <param name="baudrate" type="int" value="$(arg baudrate)" />
+        <param name="frame_id" type="string" value="$(arg frame_id)"/>
+        <param name="imu_decimation" type="int" value="$(arg imu_decimation)" />
+        <param name="filter_decimation" type="int" value="$(arg filter_decimation)"/>
+        <param name="enable_filter" type="bool" value="$(arg enable_filter)"/>
+        <param name="enable_accel_update" type="bool" value="$(arg enable_accel_update)"/>
+        <param name="enable_mag_update" type="bool" value="$(arg enable_mag_update)"/>
+    </node>
+
+    <!-- Camera -->
+    <node pkg="bluefox2" type="bluefox2" name="camera_front" output="screen" >
+        <param name="fps" type="double" value="30.0" />
+        <param name="gain" type="double" value="5.0" />
+        <param name="exposure_time_us" type="int" value="10000" />
+        <param name="use_auto_exposure" type="bool" value="false" />
+        <param name="use_color" type="bool" value="false" />
+        <param name="use_hdr" type="bool" value="true" />
+        <param name="has_hdr" type="bool" value="true" />
+        <param name="use_inverted" type="bool" value="false" />
+        <param name="use_binning" type="bool" value="false" />
+        <param name="use_split_image" type="bool" value="false" />
+        <param name="use_stereo" type="bool" value="true" />
+        <param name="serial_left"  type="string" value="25000709" />
+        <param name="serial_right"  type="string" value="25000704" />
+    </node>
+
+</launch>
